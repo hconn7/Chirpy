@@ -59,17 +59,3 @@ func (db *DB) UserForRefreshToken(token string) (UserDat, error) {
 
 	return user, nil
 }
-func (db *DB) GetUser(id int) (UserDat, error) {
-	dbStructure, err := db.LoadDB()
-	if err != nil {
-		return UserDat{}, err
-	}
-
-	user, ok := dbStructure.Users[id]
-	if !ok {
-		return UserDat{}, errors.New("Cannot find user")
-
-	}
-
-	return user, nil
-}

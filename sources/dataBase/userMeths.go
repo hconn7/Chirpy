@@ -68,3 +68,18 @@ func (db *DB) UpdateUser(userID int, newEmail, newPassword string) (*UserDat, er
 	updatedUser.Password = ""
 	return &updatedUser, nil
 }
+
+func (db *DB) GetUser(id int) (UserDat, error) {
+	dbStructure, err := db.LoadDB()
+	if err != nil {
+		return UserDat{}, err
+	}
+
+	user, ok := dbStructure.Users[id]
+	if !ok {
+		return UserDat{}, errors.New("Cannot find user")
+
+	}
+
+	return user, nil
+}
