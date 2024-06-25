@@ -9,6 +9,24 @@ import (
 )
 
 func (cfg *apiConfig) handlerChirpsRetrieve(w http.ResponseWriter, r *http.Request) {
+	s := r.URL.Query().Get("author_id")
+	sortOrder := r.URL.Query().Get("sort")
+	if s != "" {
+		authorID, err := strconv.Atoi(s)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Issues converting author_id to integer")
+			return
+		}
+
+		chirps, err := cfg.DB.GetChirpByAuth(authorID)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Issues finding chirps for author")
+			return
+		}
+
+		respondWithJSON(w, http.StatusOK, chirps)
+		return
+	}
 
 	dbChirps, err := cfg.DB.GetChirps()
 	if err != nil {
@@ -16,7 +34,35 @@ func (cfg *apiConfig) handlerChirpsRetrieve(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	chirps := []Chirp{}
+	chirps := make([]Chirp, len(dbChirps))
+	for i, dbChirp := range dbChirps {
+		chirps[i] = Chirp{
+			ID:       dbChirp.ID,
+			Body:     dbChirp.Body,
+			AuthorID: dbChirp.AuthorID,
+		}
+	}
+
+	sort.Slice(chirps, func(i, j int) bool {
+		return chirps[i].ID < chirps[j].ID
+	})
+
+	respondWithJSON(w, http.StatusOK, chirps)
+
+	switch sortOrder {
+	case "desc":
+		sort.Slice(dbChirps, func(i, j int) bool {
+			return dbChirps[i].ID > dbChirps[j].ID
+		})
+	case "asc", "":
+		fallthrough
+	default:
+		sort.Slice(dbChirps, func(i, j int) bool {
+			return dbChirps[i].ID < dbChirps[j].ID
+		})
+	}
+
+	chirps = []Chirp{}
 	for _, dbChirp := range dbChirps {
 		chirps = append(chirps, Chirp{
 			ID:       dbChirp.ID,
@@ -24,10 +70,6 @@ func (cfg *apiConfig) handlerChirpsRetrieve(w http.ResponseWriter, r *http.Reque
 			AuthorID: dbChirp.AuthorID,
 		})
 	}
-
-	sort.Slice(chirps, func(i, j int) bool {
-		return chirps[i].ID < chirps[j].ID
-	})
 
 	respondWithJSON(w, http.StatusOK, chirps)
 }

@@ -48,18 +48,22 @@ func (db *DB) GetChirps() ([]Chirp, error) {
 
 	return chirps, nil
 }
+
 func (db *DB) DeleteChirp(chirpID, userID int) error {
 	dbStruct, err := db.LoadDB()
 	if err != nil {
 		return err
 	}
 
-	if _, ok := dbStruct.Chirps[chirpID]; !ok {
-		return errors.New("Chirp not found via id")
+	chirp, ok := dbStruct.Chirps[chirpID]
+	if !ok {
+		return errors.New("Chirp not found")
 	}
-	if chirpID != userID {
-		return errors.New("You aren't authoroized to delete this chirp")
+
+	if chirp.AuthorID != userID {
+		return errors.New("Chirp someone your own size!")
 	}
+
 	delete(dbStruct.Chirps, chirpID)
 
 	if err := db.writeDB(dbStruct); err != nil {
@@ -67,4 +71,18 @@ func (db *DB) DeleteChirp(chirpID, userID int) error {
 	}
 
 	return nil
+}
+func (db *DB) GetChirpByAuth(authorID int) ([]Chirp, error) {
+	dbStruct, err := db.LoadDB()
+	if err != nil {
+		return nil, errors.New("Couldn't load db")
+	}
+
+	var authChirps []Chirp
+	for _, chirp := range dbStruct.Chirps {
+		if chirp.AuthorID == authorID {
+			authChirps = append(authChirps, chirp)
+		}
+	}
+	return authChirps, nil
 }

@@ -14,6 +14,7 @@ type apiConfig struct {
 	jwtSecret      string
 	fileServerHits int
 	DB             *database.DB
+	apiKey         string
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -41,6 +42,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("error loading .env")
 	}
+	apiKey := os.Getenv("API_KEY")
 	jwtSecret := os.Getenv("JWT_SECRET")
 	const filepathRoot = "."
 	const port = ":8080" // Corrected port format
@@ -54,6 +56,7 @@ func main() {
 		fileServerHits: 0,
 		DB:             db,
 		jwtSecret:      jwtSecret,
+		apiKey:         apiKey,
 	}
 
 	mux := http.NewServeMux()
@@ -68,7 +71,7 @@ func main() {
 
 	mux.HandleFunc("GET /api/reset", apiCfg.resetHits)
 	mux.HandleFunc("GET /api/healthz", healthzHandler)
-	mux.HandleFunc("GET /api/chirps", apiCfg.handlerChirpsRetrieve)
+	mux.HandleFunc("GET /api/chirps/", apiCfg.handlerChirpsRetrieve)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.handlerChirpsGet)
 	mux.HandleFunc("GET /admin/metrics", apiCfg.writeHits)
 

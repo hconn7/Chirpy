@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strings"
 )
 
 func (cfg *apiConfig) handlerUpgrade(w http.ResponseWriter, r *http.Request) {
@@ -13,10 +15,14 @@ func (cfg *apiConfig) handlerUpgrade(w http.ResponseWriter, r *http.Request) {
 		Event string      `json:"event"`
 		Data  DataPayload `json:"data"`
 	}
-
+	err := cfg.apiAuthorization(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Faulty api key")
+		return
+	}
 	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
-	err := decoder.Decode(&params)
+	err = decoder.Decode(&params)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters")
 		return
@@ -26,7 +32,6 @@ func (cfg *apiConfig) handlerUpgrade(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusNoContent, "Request not applicable")
 		return
 	}
-
 	user, err := cfg.DB.GetUser(params.Data.UserID)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "User not found")
@@ -41,4 +46,19 @@ func (cfg *apiConfig) handlerUpgrade(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, http.StatusNoContent, "")
+}
+func (cfg *apiConfig) apiAuthorization(headers http.Header) error {
+	apiHeader := headers.Get("Authorization")
+	if apiHeader == "" {
+		return errors.New("no header")
+	}
+	splitAuth := strings.Split(apiHeader, " ")
+	if len(splitAuth) < 2 || splitAuth[0] != "ApiKey" {
+		return errors.New("no authorization")
+	}
+	if splitAuth[1] != cfg.apiKey {
+		return errors.New("missing key")
+	}
+
+	return nil
 }
