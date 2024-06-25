@@ -31,10 +31,13 @@ type UserDat struct {
 	Password     string `json:"password"`
 	Token        string `json:"token"`
 	RefreshToken string `json:"refresh_token"`
+	Subscription bool   `json:"is_chirpy_red"`
 }
+
 type Chirp struct {
-	ID   int    `json:"id"`
-	Body string `json:"body"`
+	ID       int    `json:"id"`
+	Body     string `json:"body"`
+	AuthorID int    `json:"author_id"`
 }
 
 func NewDB(path string) (*DB, error) {

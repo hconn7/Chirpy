@@ -64,6 +64,7 @@ func main() {
 	mux.HandleFunc("POST /api/chirps", apiCfg.handlerChirpsCreate)
 	mux.HandleFunc("POST /api/users", apiCfg.handlerCreateUser)
 	mux.HandleFunc("POST /api/login", apiCfg.handleLogin)
+	mux.HandleFunc("POST /api/polka/webhooks", apiCfg.handlerUpgrade)
 
 	mux.HandleFunc("GET /api/reset", apiCfg.resetHits)
 	mux.HandleFunc("GET /api/healthz", healthzHandler)
@@ -71,7 +72,10 @@ func main() {
 	mux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.handlerChirpsGet)
 	mux.HandleFunc("GET /admin/metrics", apiCfg.writeHits)
 
-	mux.HandleFunc("PUT /api/users", apiCfg.handlerUsersUpdate) // POST request to retrieve chirps mux.HandleFunc("POST /api/login", apiCfg.handlerLogin)
+	mux.HandleFunc("PUT /api/users", apiCfg.handlerUsersUpdate)
+
+	mux.HandleFunc("DELETE /api/chirps/{chirpID}", apiCfg.handlerDeleteChirp)
+
 	// Static file server
 	fileserver := http.FileServer(http.Dir(filepathRoot))
 	strippedFileServer := http.StripPrefix("/app", fileserver)

@@ -21,10 +21,11 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 	}
 
 	type UserDat struct {
-		ID         int    `json:"id"`
-		Email      string `json:"email"`
-		Password   string `json:"password"`
-		Expiration string `json:"expires_in_seconds"`
+		ID           int    `json:"id"`
+		Email        string `json:"email"`
+		Password     string `json:"password"`
+		Expiration   string `json:"expires_in_seconds"`
+		Subscirption bool   `json:"is_chirpy_red"`
 	}
 
 	fmt.Printf("Received %s request for %s\n", r.Method, r.URL.Path)
@@ -43,8 +44,9 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 	}
 
 	respondWithJSON(w, http.StatusCreated, UserDat{
-		ID:    userDat.ID,
-		Email: userDat.Email,
+		ID:           userDat.ID,
+		Email:        userDat.Email,
+		Subscirption: false,
 	})
 }
 
@@ -60,6 +62,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		Password     string `json:"password"`
 		Expiration   string `json:"expires_in_seconds"`
 		RefreshToken string `json:"refresh_token"`
+		Subscription bool   `json:"is_chirpy_red"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -81,8 +84,9 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respondWithJSON(w, http.StatusOK, UserDat{
-		ID:    user.ID,
-		Email: user.Email,
+		ID:           user.ID,
+		Email:        user.Email,
+		Subscription: user.Subscription,
 	})
 }
 
@@ -99,6 +103,7 @@ func (cfg *apiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 		Expiration   string `json:"expires_in_seconds"`
 		RefreshToken string `json:"refresh_token"`
 		Token        string `json:"token"`
+		Subscirption bool   `json:"is_chirpy_red"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
@@ -106,7 +111,7 @@ func (cfg *apiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("Attmepting to authorize")
+	fmt.Println("Attempting to authorize")
 	// Validate user credentials
 	user, err := cfg.DB.LookupByEmail(reqBody.Email)
 	if err != nil {
@@ -114,7 +119,9 @@ func (cfg *apiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusUnauthorized, "Invalid email or password")
 		return
 	}
-	fmt.Println("authorize complete")
+	fmt.Println("Authorize complete")
+
+	fmt.Printf("User subscription status before response: %v\n", user.Subscription) // Add logging
 
 	// Set default expiration to 24 hours
 	expirationTime := time.Hour * 24
@@ -154,13 +161,21 @@ func (cfg *apiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't save refresh token")
 		return
 	}
+	updatedUser, err := cfg.DB.LookupByEmail(reqBody.Email)
+	if err != nil {
+		fmt.Println("Error fetching user details", err)
+		respondWithError(w, http.StatusInternalServerError, "Error fetching user details")
+		return
+	}
 	respondWithJSON(w, http.StatusOK, UserDat{
 		ID:           user.ID,
 		Email:        user.Email,
 		Token:        tokenString,
 		RefreshToken: refreshToken,
+		Subscirption: updatedUser.Subscription, // Ensure this reflects the correct value from the database
 	})
 }
+
 func (cfg *apiConfig) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	// Extract and validate the JWT from the request header
@@ -192,7 +207,6 @@ func (cfg *apiConfig) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Decode request body to get new user email and password
 	var reqBody struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
