@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hconn7/Chirpy/internal/auth"
 	"github.com/hconn7/Chirpy/internal/database"
 )
 
@@ -16,6 +17,7 @@ type Request struct {
 	Body   string    `json:"body"`
 	UserID uuid.UUID `json:"user_id"`
 }
+
 type Chirp struct {
 	ID        uuid.UUID `json:"id"`
 	CreatedAt time.Time `json:"created_at"`
@@ -49,17 +51,19 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 		respondWithError(w, 400, "Error Marshaling Response", err)
 
 	}
-
-	user, err := cfg.dbQueries.GetUserByID(r.Context(), request.UserID)
+	token, err := auth.GetBearerToken(r.Header)
 	if err != nil {
-		// User doesn't exist
-		fmt.Printf("User %s not found: %v\n", request.UserID, err)
-		respondWithError(w, 404, "User not found", err)
-		return
+		respondWithError(w, 401, "No token", err)
 	}
+
+	userID, err := auth.ValidateJWT(token, cfg.JwtSecret)
+	if err != nil {
+		respondWithError(w, 401, "Token not validated", err)
+	}
+
 	newChirp, err := cfg.dbQueries.CreateChirp(r.Context(), database.CreateChirpParams{
 		Body:   deProfane,
-		UserID: user.ID,
+		UserID: userID,
 	})
 	if err != nil {
 		respondWithError(w, 500, "Error creating chirp", err)
@@ -73,7 +77,7 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 		CreatedAt: newChirp.CreatedAt,
 		UpdatedAt: newChirp.UpdatedAt,
 		Body:      newChirp.Body,
-		UserID:    request.UserID,
+		UserID:    userID,
 	})
 }
 

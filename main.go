@@ -17,6 +17,7 @@ type apiConfig struct {
 	fileserverHits atomic.Int32
 	dbQueries      *database.Queries
 	Platform       string
+	JwtSecret      string
 }
 type httpServer struct {
 	handler http.Handler
@@ -30,7 +31,7 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 	dbURL := os.Getenv("DB_URL")
-
+	tokenSecret := os.Getenv("SECRET_TOKEN")
 	platform := os.Getenv("PLATFORM")
 
 	db, err := sql.Open("postgres", dbURL)
@@ -42,11 +43,15 @@ func main() {
 		fileserverHits: atomic.Int32{},
 		dbQueries:      dbQueries,
 		Platform:       platform,
+		JwtSecret:      tokenSecret,
 	}
 	mux := http.NewServeMux()
 	httpServ := httpServer{handler: mux, address: ":8080"}
 	fileServer := http.FileServer(http.Dir("."))
 	//Handlers
+	mux.HandleFunc("POST /api/refresh", apiCfg.handlerValidateRefreshToken)
+	mux.HandleFunc("POST /api/revoke", apiCfg.handlerRevokeRefreshToken)
+	mux.HandleFunc("POST /api/login", apiCfg.handlerValidateLogin)
 	mux.HandleFunc("POST /api/chirps", apiCfg.handlerCreateChirp)
 	mux.HandleFunc("POST /admin/reset", apiCfg.handlerResetUsers)
 	mux.HandleFunc("POST /api/users", apiCfg.handlerCreateUser)

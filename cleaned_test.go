@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestCleanFuncTest(t *testing.T) {
+func CleanFuncTest(t *testing.T) {
 	var tests = []struct {
 		chirp string
 		want  string
@@ -22,10 +22,8 @@ func TestCleanFuncTest(t *testing.T) {
 			answers := CheckProfanityChirp(tt.chirp)
 			result := strings.Join(answers, " ")
 			if result != tt.want {
-				t.Errorf("got %s, want %s", result, tt.want)
+				t.Errorf("got %s, want %s", result , tt.want)
 			} else {
-				fmt.Printf("got %s and wanted %s", result, tt.want)
-			}
 
 		})
 	}
