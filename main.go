@@ -18,6 +18,7 @@ type apiConfig struct {
 	dbQueries      *database.Queries
 	Platform       string
 	JwtSecret      string
+	ApiKey         string
 }
 type httpServer struct {
 	handler http.Handler
@@ -33,7 +34,7 @@ func main() {
 	dbURL := os.Getenv("DB_URL")
 	tokenSecret := os.Getenv("SECRET_TOKEN")
 	platform := os.Getenv("PLATFORM")
-
+	apiKey := os.Getenv("API_KEY")
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		fmt.Print(err)
@@ -44,12 +45,18 @@ func main() {
 		dbQueries:      dbQueries,
 		Platform:       platform,
 		JwtSecret:      tokenSecret,
+		ApiKey:         apiKey,
 	}
 	mux := http.NewServeMux()
 	httpServ := httpServer{handler: mux, address: ":8080"}
 	fileServer := http.FileServer(http.Dir("."))
 	//Handlers
+	mux.HandleFunc("DELETE /api/chirps/{chirpID}", apiCfg.handlerDeleteChirp)
+
+	mux.HandleFunc("PUT /api/users", apiCfg.handlerUpdateUser)
+
 	mux.HandleFunc("POST /api/refresh", apiCfg.handlerValidateRefreshToken)
+	mux.HandleFunc("POST /api/polka/webhooks", apiCfg.handlerWebhooks)
 	mux.HandleFunc("POST /api/revoke", apiCfg.handlerRevokeRefreshToken)
 	mux.HandleFunc("POST /api/login", apiCfg.handlerValidateLogin)
 	mux.HandleFunc("POST /api/chirps", apiCfg.handlerCreateChirp)
@@ -57,7 +64,7 @@ func main() {
 	mux.HandleFunc("POST /api/users", apiCfg.handlerCreateUser)
 
 	mux.HandleFunc("GET /api/chirps", apiCfg.handlerGetAllChirps)
-	mux.HandleFunc("GET /api/chirps/{chirpsID}", apiCfg.hanlerGetSingleChirp)
+	mux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.hanlerGetSingleChirp)
 	mux.HandleFunc("GET /admin/metrics", apiCfg.writeHits)
 	mux.HandleFunc("GET /api/healthz", HandlerHealthz)
 	mux.Handle("/app/", http.StripPrefix("/app/", apiCfg.MiddlewareMetricsInc((fileServer))))

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -24,6 +25,7 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 		Updated_at time.Time `json:"updated_at"`
 		Email      string    `json:"email"`
 		Password   string    `json:"password"`
+		Sub        bool      `json:"is_chirpy_red"`
 	}
 	params := Params{}
 	decoder := json.NewDecoder(r.Body)
@@ -50,6 +52,7 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 		Updated_at: user.UpdatedAt,
 		Email:      user.Email,
 		Password:   params.Password,
+		Sub:        user.IsChirpyRed,
 	})
 }
 
@@ -100,6 +103,7 @@ func (cfg *apiConfig) handlerValidateLogin(w http.ResponseWriter, r *http.Reques
 		Token        string    `json:"token"`
 		RefreshToken string    `json:"refresh_token"`
 		Password     string    `json:"password"`
+		Sub          bool      `json:"is_chirpy_red"`
 	}
 
 	respondWithJson(w, 200, Response{
@@ -109,6 +113,7 @@ func (cfg *apiConfig) handlerValidateLogin(w http.ResponseWriter, r *http.Reques
 		Email:        user.Email,
 		Token:        token,
 		RefreshToken: refreshToken,
+		Sub:          user.IsChirpyRed,
 	})
 }
 func (cfg *apiConfig) handlerResetUsers(w http.ResponseWriter, r *http.Request) {
@@ -120,4 +125,39 @@ func (cfg *apiConfig) handlerResetUsers(w http.ResponseWriter, r *http.Request) 
 	}
 
 	respondWithJson(w, 200, "Deleted users")
+}
+
+func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, r *http.Request) {
+	type Params struct {
+		Token    string `json:"token"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	authToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, 401, "No Auth header", err)
+	}
+
+	var params Params
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&params); err != nil {
+		respondWithError(w, 401, "Missing data", err)
+	}
+	fmt.Printf("Users email: %v, User password: %v", params.Email, params.Password)
+	userID, err := auth.ValidateJWT(authToken, cfg.JwtSecret)
+	if err != nil {
+		respondWithError(w, 401, "Recieved Token but couldn't validate it", err)
+	}
+
+	user, err := cfg.dbQueries.GetUserByID(r.Context(), userID)
+
+	password, _ := auth.HashPassword(params.Password)
+	cfg.dbQueries.UpdateUser(r.Context(), database.UpdateUserParams{
+		ID:             user.ID,
+		Email:          params.Email,
+		HashedPassword: password})
+	type Response struct {
+		Email string `json:"email"`
+	}
+	respondWithJson(w, 200, Response{Email: params.Email})
 }
